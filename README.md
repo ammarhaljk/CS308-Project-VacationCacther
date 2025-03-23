@@ -40,5 +40,5 @@ Add Firebase integration for cloud storage.
 Implement Google sign-in for authentication.
 Enable online album sharing between users.
 
-This is an **early prototype**, and improvements will be made in future updates! 🚀
+This is an **early prototype**, and improvements will be made in future updates.
 
