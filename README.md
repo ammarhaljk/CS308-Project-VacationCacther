@@ -36,9 +36,9 @@ VacationCatcher is a mobile app designed to let friends easily share and manage 
    ```
 
 ## Future Improvements
-✅ Add Firebase integration for cloud storage.
-✅ Implement Google sign-in for authentication.
-✅ Enable online album sharing between users.
+Add Firebase integration for cloud storage.
+Implement Google sign-in for authentication.
+Enable online album sharing between users.
 
 This is an **early prototype**, and improvements will be made in future updates! 🚀
 
