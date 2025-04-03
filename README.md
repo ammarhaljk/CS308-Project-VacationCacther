@@ -23,7 +23,7 @@ VacationCatcher is a mobile app designed to let friends easily share and manage 
 ## How to Run
 1. **Clone the repository**:
    ```sh
-   git clone https://github.com/YOUR_USERNAME/VacationCatcher.git
+   git clone https://github.com/ammarhaljk/VacationCatcher.git
    cd VacationCatcher
    ```
 2. **Install dependencies**:
