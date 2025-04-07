@@ -1,4 +1,4 @@
-Project done by Faruk Basic, Almir Bajric and Ammar Haljkovic
+Project done by Faruk Basic, Almir Bajric, Minad Kamberovic and Ammar Haljkovic 
 # VacationCatcher (Barebones Version)
 
 VacationCatcher is a mobile app designed to let friends easily share and manage vacation photos in shared albums. This version is just the **bare skeleton**, providing basic album creation, image uploading, and viewing functionality.
