@@ -199,30 +199,6 @@ class _AlbumScreenState extends State<AlbumScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Welcome Banner
-          Container(
-            padding: EdgeInsets.all(16.0),
-            color: Color(0xFFFFECB3),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome, $userName!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Create albums to store your vacation memories',
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ],
-            ),
-          ),
 
           // Albums Grid
           Expanded(
