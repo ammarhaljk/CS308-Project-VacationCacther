@@ -12,6 +12,7 @@ import 'dart:io';
 import 'storage_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'menu_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +47,8 @@ class AuthStateWrapper extends StatelessWidget {
           if (user == null) {
             return AuthWrapper();
           }
-          return AlbumScreen(userId: user.uid);
+          // Return MenuScreen instead of AlbumScreen
+          return MenuScreen(userId: user.uid);
         }
 
         // While waiting for connection to establish
