@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'auth_service.dart';
 import 'main.dart';
+import 'friends_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   final String userId;
@@ -118,15 +119,17 @@ class MenuScreen extends StatelessWidget {
 
               SizedBox(height: 20),
 
-              // Friends Button
+              // Friends Button - Updated to navigate to FriendsScreen
               _buildMenuButton(
                 context,
                 'Friends',
                 Icons.person_add,
                     () {
-                  // Show "Coming Soon" message for now
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Friends feature coming soon")),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FriendsScreen(userId: userId),
+                    ),
                   );
                 },
               ),
