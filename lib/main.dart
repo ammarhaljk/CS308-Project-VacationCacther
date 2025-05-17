@@ -13,11 +13,16 @@ import 'storage_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'menu_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+  await FirebaseAppCheck.instance.activate(androidProvider: AndroidProvider.debug);
   runApp(VacationCatcher());
+
 }
 
 class VacationCatcher extends StatelessWidget {
