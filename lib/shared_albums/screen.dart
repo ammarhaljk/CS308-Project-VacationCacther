@@ -248,6 +248,8 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: [
             Tab(text: 'Created by Me'),
             Tab(text: 'Shared with Me'),

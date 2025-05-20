@@ -212,33 +212,6 @@ class _AlbumScreenState extends State<AlbumScreen> {
               _showUserProfileDialog();
             },
           ),
-          IconButton(
-            icon: Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text("Sign Out"),
-                  content: Text("Are you sure you want to sign out?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: Text("Cancel"),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _signOut();
-                      },
-                      child: Text("Sign Out"),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
         ],
       ),
       body: isLoading
