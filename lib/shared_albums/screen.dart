@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Add this import
+import 'package:cached_network_image/cached_network_image.dart';
 import 'shared_album_detail.dart';
 import 'create_shared_album.dart';
 
@@ -215,15 +215,16 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
     });
   }
 
-  void _handleTabSelection() async {
-    if (_tabController.indexIsChanging) {
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging || _tabController.index != _selectedTabIndex) {
       setState(() {
         _selectedTabIndex = _tabController.index;
       });
 
       // Save tab index for next time
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('sharedAlbumsTabIndex', _tabController.index);
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setInt('sharedAlbumsTabIndex', _tabController.index);
+      });
     }
   }
 
@@ -259,14 +260,179 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
-          // "Created by Me" tab
-          _buildMyAlbumsList(),
+          // "Created by Me" tab with buttons
+          Stack(
+            children: [
+              _buildMyAlbumsList(),
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: _buildActionButtons(),
+              ),
+            ],
+          ),
 
-          // "Shared with Me" tab
+          // "Shared with Me" tab (no buttons)
           _buildSharedWithMeList(),
         ],
       ),
     );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Delete Album Button
+        FloatingActionButton(
+          heroTag: "deleteBtn",
+          backgroundColor: Color(0xFFFF5252),
+          onPressed: () {
+            _showDeleteAlbumDialog();
+          },
+          child: Icon(Icons.delete, color: Colors.white),
+        ),
+        SizedBox(width: 16),
+        // Create Album Button
+        FloatingActionButton(
+          heroTag: "createBtn",
+          backgroundColor: Color(0xFFFF5252),
+          onPressed: () => _navigateToCreateSharedAlbum(context),
+          child: Icon(Icons.add, color: Colors.white),
+        ),
+
+      ],
+    );
+  }
+
+  void _showDeleteAlbumDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Delete Album"),
+          content: Container(
+            width: double.maxFinite,
+            height: 300,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('sharedAlbums')
+                  .where('creatorId', isEqualTo: widget.userId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text("Error loading albums"));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                final albums = snapshot.data?.docs ?? [];
+
+                if (albums.isEmpty) {
+                  return Center(child: Text("No albums to delete"));
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: albums.length,
+                  itemBuilder: (context, index) {
+                    final albumData = albums[index].data() as Map<String, dynamic>;
+                    final albumName = albumData['name'] ?? 'Unnamed Album';
+                    final albumId = albums[index].id;
+
+                    return ListTile(
+                      leading: Icon(Icons.photo_album),
+                      title: Text(albumName),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _deleteAlbum(albumId, albumName);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("Cancel"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteAlbum(String albumId, String albumName) async {
+    // Show confirmation dialog
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Delete'),
+        content: Text('Are you sure you want to delete "$albumName"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirmDelete) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Get all photos in the album - using 'images' collection as per security rules
+      final photosSnapshot = await FirebaseFirestore.instance
+          .collection('sharedAlbums')
+          .doc(albumId)
+          .collection('images')
+          .get();
+
+      // Create a batch to delete all photos and the album
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // Add photo deletes to batch
+      for (var photoDoc in photosSnapshot.docs) {
+        batch.delete(photoDoc.reference);
+      }
+
+      // Add album delete to batch
+      batch.delete(FirebaseFirestore.instance.collection('sharedAlbums').doc(albumId));
+
+      // Commit the batch
+      await batch.commit();
+
+      // Refresh album list
+      _loadMyAlbums();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Album deleted successfully')),
+      );
+    } catch (e) {
+      print('Error deleting album: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete album')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Widget _buildMyAlbumsList() {
@@ -290,57 +456,30 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _navigateToCreateSharedAlbum(context),
-              icon: Icon(Icons.add_photo_alternate),
-              label: Text('Create New Album'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFFF5252),
-                foregroundColor: Colors.white,
-              ),
-            ),
           ],
         ),
       );
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ElevatedButton.icon(
-            onPressed: () => _navigateToCreateSharedAlbum(context),
-            icon: Icon(Icons.add_photo_alternate),
-            label: Text('Create New Album'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFFFF5252),
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ),
-        Expanded(
-          child: GridView.builder(
-            controller: _myAlbumsScrollController,
-            padding: EdgeInsets.all(16),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: _myAlbums.length + (_hasMoreMyAlbums ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index >= _myAlbums.length) {
-                return Center(child: CircularProgressIndicator());
-              }
+    return GridView.builder(
+      controller: _myAlbumsScrollController,
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 100), // Add padding at bottom for buttons
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.8,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: _myAlbums.length + (_hasMoreMyAlbums ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= _myAlbums.length) {
+          return Center(child: CircularProgressIndicator());
+        }
 
-              final album = _myAlbums[index];
-              final albumData = album.data() as Map<String, dynamic>;
-              return _buildAlbumCard(album.id, albumData, true);
-            },
-          ),
-        ),
-      ],
+        final album = _myAlbums[index];
+        final albumData = album.data() as Map<String, dynamic>;
+        return _buildAlbumCard(album.id, albumData, true);
+      },
     );
   }
 
@@ -424,7 +563,7 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
                 child: ClipRRect(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                   child: coverImageUrl.isNotEmpty
-                      ? CachedNetworkImage(  // Use CachedNetworkImage instead
+                      ? CachedNetworkImage(
                     imageUrl: coverImageUrl,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Center(
@@ -438,8 +577,7 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
                         color: Colors.grey[600],
                       ),
                     ),
-                    // Enable memory caching
-                    memCacheWidth: 300,  // Limit memory cache size
+                    memCacheWidth: 300,
                   )
                       : Container(
                     color: Colors.grey[300],
@@ -493,12 +631,16 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
     );
   }
 
-  void _navigateToCreateSharedAlbum(BuildContext context) {
-    Navigator.push(
+  void _navigateToCreateSharedAlbum(BuildContext context) async {
+    // Wait for the navigation to complete
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CreateSharedAlbumScreen(userId: widget.userId),
       ),
     );
+
+    // Refresh albums when returning from create screen
+    _loadMyAlbums();
   }
 }

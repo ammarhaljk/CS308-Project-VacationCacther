@@ -270,7 +270,7 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       // Add to Firestore
-      DocumentReference imageDoc = await FirebaseFirestore.instance
+      await FirebaseFirestore.instance
           .collection('sharedAlbums')
           .doc(widget.albumId)
           .collection('images')
@@ -281,28 +281,6 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'thumbnail': downloadUrl, // Use same URL for now, but in production you'd have a separate thumbnail
         'size': imageFile.lengthSync(), // Store file size
-      });
-
-      // Update images list immediately without waiting for stream
-      setState(() {
-        // Add the new image to the top of our list since it's the newest
-        final newImageData = {
-          'url': downloadUrl,
-          'fileName': fileName,
-          'uploadedBy': widget.userId,
-          'createdAt': Timestamp.now(),
-        };
-
-        // Create a mock document snapshot and add it to the top of the list
-        // This is a simplification - in a real app you might want to refresh the data
-        // This approach at least gives immediate visual feedback
-        if (_images.isEmpty) {
-          // Refresh the whole list if it was empty
-          _loadInitialImages();
-        } else {
-          // Your _images list might not handle this mock document correctly
-          // For a production app, consider refreshing the data instead
-        }
       });
 
       // Update album cover if this is the first image
@@ -318,6 +296,9 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
       setState(() {
         _isUploadingImage = false;
       });
+
+      // Refresh image list instead of updating just one item
+      _loadInitialImages();
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -481,7 +462,7 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
         backgroundColor: Color(0xFFFF5252),
         actions: [
           IconButton(
-            icon: Icon(Icons.people),
+            icon: Icon(Icons.people, color: Colors.white),
             onPressed: _showParticipantsDialog,
           ),
         ],
@@ -520,7 +501,7 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
         backgroundColor: _isUploadingImage ? Colors.grey : Color(0xFFFF5252),
         child: _isUploadingImage
             ? CircularProgressIndicator(color: Colors.white)
-            : Icon(Icons.add_a_photo),
+            : Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -621,7 +602,7 @@ class FullScreenImageView extends StatelessWidget {
           Navigator.pop(context);
 
           // Navigate back to album
-          Navigator.pop(context);
+          Navigator.pop(context, true); // Pass 'true' to indicate deletion occurred
 
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
