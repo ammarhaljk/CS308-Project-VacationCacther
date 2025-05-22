@@ -143,14 +143,14 @@ class MenuScreen extends StatelessWidget {
     // Account Button
     _buildMenuButton(
     context,
-    'Account',
-    Icons.settings,
+    'Trip Planner',
+    Icons.travel_explore,
     () {
-    // Placeholder for navigation to Account screen
+    // Placeholder for navigation to Trip Planner screen
     // This will be implemented later
     ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-    content: Text("Account settings coming soon!"),
+    content: Text("Trip Planner coming soon!"),
     duration: Duration(seconds: 2),
     ),
     );
