@@ -4,6 +4,7 @@ import 'auth_service.dart';
 import 'main.dart';
 import 'friends_screen.dart';
 import 'shared_albums/screen.dart';
+import 'planner_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   final String userId;
@@ -140,22 +141,20 @@ class MenuScreen extends StatelessWidget {
 
     SizedBox(height: 20),
 
-    // Account Button
-    _buildMenuButton(
-    context,
-    'Trip Planner',
-    Icons.travel_explore,
-    () {
-    // Placeholder for navigation to Trip Planner screen
-    // This will be implemented later
-    ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-    content: Text("Trip Planner coming soon!"),
-    duration: Duration(seconds: 2),
-    ),
-    );
-    },
-    ),
+// Trip planner Button
+      _buildMenuButton(
+        context,
+        'Trip Planner',
+        Icons.travel_explore,
+            () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TripPlannerScreen(userId: userId),
+            ),
+          );
+        },
+      ),
     ],
     ),
     ),

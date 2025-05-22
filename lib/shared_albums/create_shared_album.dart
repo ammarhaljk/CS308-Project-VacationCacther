@@ -59,7 +59,7 @@ class _CreateSharedAlbumScreenState extends State<CreateSharedAlbumScreen> {
           final userData = userDoc.data() as Map<String, dynamic>;
           friendsList.add({
             'id': friendId,
-            'name': userData['displayName'] ?? 'Unknown User',
+            'name': userData['username'] ?? 'Unknown User',
             'photoUrl': userData['photoUrl'] ?? '',
             'email': userData['email'] ?? '',
           });

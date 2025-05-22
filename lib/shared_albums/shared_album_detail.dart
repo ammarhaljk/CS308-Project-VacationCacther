@@ -175,7 +175,7 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
               final userData = userDoc.data() as Map<String, dynamic>;
               participants.add({
                 'id': userId,
-                'name': userData['displayName'] ?? 'Unknown User',
+                'name': userData['username'] ?? 'Unknown User',
                 'photoUrl': userData['photoUrl'] ?? '',
                 'email': userData['email'] ?? '',
                 'isCreator': userId == _albumCreatorId,
