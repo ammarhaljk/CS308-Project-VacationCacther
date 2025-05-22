@@ -3,12 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Add this import
-import 'package:flutter_image_compress/flutter_image_compress.dart'; // Add this import
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
-import 'package:path_provider/path_provider.dart' as path_provider; // Add this import
+import 'package:path_provider/path_provider.dart' as path_provider;
 
 class SharedAlbumDetailScreen extends StatefulWidget {
   final String albumId;
@@ -219,6 +220,114 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
     return result != null ? File(result.path) : null;
   }
 
+  Future<void> _showAddNoteDialog(String imageId, String imageUrl) async {
+    final TextEditingController noteController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.note_add, color: Color(0xFFFF5252)),
+            SizedBox(width: 8),
+            Text('Add Note'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Show thumbnail of the image
+            Container(
+              height: 100,
+              width: double.infinity,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[300],
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              decoration: InputDecoration(
+                labelText: 'Your note',
+                hintText: 'Add a note about this photo...',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.edit),
+              ),
+              maxLines: 3,
+              maxLength: 500,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (noteController.text.trim().isNotEmpty) {
+                await _addNoteToImage(imageId, noteController.text.trim());
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Note added successfully')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFFFF5252),
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Add Note'),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Add this function to save the note to Firestore
+  Future<void> _addNoteToImage(String imageId, String note) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('sharedAlbums')
+          .doc(widget.albumId)
+          .collection('notes')
+          .add({
+        'note': note,
+        'userId': widget.userId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'imageId': imageId,
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding note: $e')),
+      );
+    }
+  }
+
+// Add this function to get notes count for an image
+  Future<int> _getNotesCount(String imageId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('sharedAlbums')
+          .doc(widget.albumId)
+          .collection('notes')
+          .where('imageId', isEqualTo: imageId)
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   Future<void> _pickAndUploadImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -427,23 +536,67 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
               ),
             );
           },
+          onLongPress: () {
+            // Haptic feedback for better UX
+            HapticFeedback.lightImpact();
+            _showAddNoteDialog(image.id, imageUrl);
+          },
           child: Hero(
             tag: image.id,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: Center(child: CircularProgressIndicator()),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[300],
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[300],
+                      child: Icon(Icons.broken_image, color: Colors.grey[600]),
+                    ),
+                    memCacheWidth: 300,
+                  ),
                 ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: Icon(Icons.broken_image, color: Colors.grey[600]),
+                // Note indicator
+                FutureBuilder<int>(
+                  future: _getNotesCount(image.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data! > 0) {
+                      return Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFF5252),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.note, color: Colors.white, size: 12),
+                              SizedBox(width: 2),
+                              Text(
+                                '${snapshot.data}',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return SizedBox.shrink();
+                  },
                 ),
-                memCacheWidth: 300, // Limit memory cache size
-              ),
+              ],
             ),
           ),
         );
@@ -455,6 +608,7 @@ class _SharedAlbumDetailScreenState extends State<SharedAlbumDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         title: Text(
           widget.albumName,
           style: GoogleFonts.pacifico(fontSize: 24, color: Colors.white),
@@ -532,6 +686,160 @@ class FullScreenImageView extends StatelessWidget {
     required this.isAlbumOwner,
   }) : super(key: key);
 
+  Future<void> _showNotesDialog(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.notes, color: Color(0xFFFF5252)),
+            SizedBox(width: 8),
+            Text('Photo Notes'),
+          ],
+        ),
+        content: Container(
+          width: double.maxFinite,
+          height: 300,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('sharedAlbums')
+                .doc(albumId)
+                .collection('notes')
+                .where('imageId', isEqualTo: imageId)
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.note_outlined, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text('No notes yet', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final noteDoc = snapshot.data!.docs[index];
+                  final noteData = noteDoc.data() as Map<String, dynamic>;
+                  final note = noteData['note'] ?? '';
+                  final userId = noteData['userId'] ?? '';
+                  final createdAt = noteData['createdAt'] as Timestamp?;
+
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .get(),
+                    builder: (context, userSnapshot) {
+                      String userName = 'Unknown User';
+                      String userPhotoUrl = '';
+
+                      if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                        userName = userData['username'] ?? 'Unknown User';
+                        userPhotoUrl = userData['photoUrl'] ?? '';
+                      }
+
+                      return Card(
+                        margin: EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundImage: userPhotoUrl.isNotEmpty
+                                ? CachedNetworkImageProvider(userPhotoUrl)
+                                : null,
+                            child: userPhotoUrl.isEmpty ? Icon(Icons.person, size: 16) : null,
+                          ),
+                          title: Text(
+                            note,
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userName,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                              if (createdAt != null)
+                                Text(
+                                  _formatTimestamp(createdAt),
+                                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                                ),
+                            ],
+                          ),
+                          trailing: (userId == currentUserId || isAlbumOwner)
+                              ? IconButton(
+                            icon: Icon(Icons.delete, size: 16, color: Colors.red),
+                            onPressed: () => _deleteNote(context, noteDoc.id),
+                          )
+                              : null,
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteNote(BuildContext context, String noteId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('sharedAlbums')
+          .doc(albumId)
+          .collection('notes')
+          .doc(noteId)
+          .delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Note deleted')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting note: $e')),
+      );
+    }
+  }
+
+  String _formatTimestamp(Timestamp timestamp) {
+    final DateTime dateTime = timestamp.toDate();
+    final DateTime now = DateTime.now();
+    final Duration difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    }
+  }
+
   Future<void> _deleteImage(BuildContext context) async {
     // Only allow delete if user is album owner or the uploader
     if (isAlbumOwner || uploaderId == currentUserId) {
@@ -602,7 +910,7 @@ class FullScreenImageView extends StatelessWidget {
           Navigator.pop(context);
 
           // Navigate back to album
-          Navigator.pop(context, true); // Pass 'true' to indicate deletion occurred
+          Navigator.pop(context, true);
 
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
@@ -631,11 +939,16 @@ class FullScreenImageView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.delete),
+            icon: Icon(Icons.notes, color: Colors.white),
+            onPressed: () => _showNotesDialog(context),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, color: Colors.white),
             onPressed: () => _deleteImage(context),
           ),
         ],

@@ -241,6 +241,7 @@ class _SharedAlbumsScreenState extends State<SharedAlbumsScreen> with SingleTick
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         title: Text(
           'Shared Albums',
           style: GoogleFonts.pacifico(fontSize: 24, color: Colors.white),
