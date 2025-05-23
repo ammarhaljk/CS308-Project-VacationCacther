@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_service.dart';
+import 'dart:async';
 
 class TripPlannerScreen extends StatefulWidget {
   final String userId;
@@ -270,70 +271,97 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> with SingleTicker
         final meetingDate = (tripData['meetingDate'] as Timestamp).toDate();
         final meetingTime = tripData['meetingTime'] as String;
 
-        return Card(
-          elevation: 4,
-          margin: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.flight_takeoff, color: Color(0xFFFF5252)),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        tripName,
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    if (!isCreator)
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue),
-                        ),
+        return GestureDetector(
+          onLongPress: () => _showTripAttractionsDialog(tripId, tripName),
+          child: Card(
+            elevation: 4,
+            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.flight_takeoff, color: Color(0xFFFF5252)),
+                      SizedBox(width: 8),
+                      Expanded(
                         child: Text(
-                          'Participant',
+                          tripName,
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (!isCreator)
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue),
+                          ),
+                          child: Text(
+                            'Participant',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  _buildTripDetailRow(Icons.location_on, "Destination", destination),
+                  SizedBox(height: 8),
+                  _buildTripDetailRow(Icons.meeting_room, "Meeting Point", meetingPoint),
+                  SizedBox(height: 8),
+                  _buildTripDetailRow(Icons.calendar_today, "Date",
+                      "${meetingDate.day}/${meetingDate.month}/${meetingDate.year}"),
+                  SizedBox(height: 8),
+                  _buildTripDetailRow(Icons.access_time, "Time", meetingTime),
+                  SizedBox(height: 12),
+                  // Long press hint
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFF5252).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.touch_app, size: 14, color: Color(0xFFFF5252)),
+                        SizedBox(width: 4),
+                        Text(
+                          "Long press to manage attractions/places to visit",
                           style: TextStyle(
-                            color: Colors.blue,
                             fontSize: 12,
+                            color: Color(0xFFFF5252),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                _buildTripDetailRow(Icons.location_on, "Destination", destination),
-                SizedBox(height: 8),
-                _buildTripDetailRow(Icons.meeting_room, "Meeting Point", meetingPoint),
-                SizedBox(height: 8),
-                _buildTripDetailRow(Icons.calendar_today, "Date",
-                    "${meetingDate.day}/${meetingDate.month}/${meetingDate.year}"),
-                SizedBox(height: 8),
-                _buildTripDetailRow(Icons.access_time, "Time", meetingTime),
-                SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _viewTripParticipants(tripId, tripName),
-                      icon: Icon(Icons.people, color: Color(0xFFFF5252)),
-                      label: Text("View Participants", style: TextStyle(color: Color(0xFFFF5252))),
+                      ],
                     ),
-                    if (isCreator)
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                       TextButton.icon(
-                        onPressed: () => _editTrip(tripId, tripData),
-                        icon: Icon(Icons.edit, color: Colors.grey),
-                        label: Text("Edit", style: TextStyle(color: Colors.grey)),
+                        onPressed: () => _viewTripParticipants(tripId, tripName),
+                        icon: Icon(Icons.people, color: Color(0xFFFF5252)),
+                        label: Text("View Participants", style: TextStyle(color: Color(0xFFFF5252))),
                       ),
-                  ],
-                ),
-              ],
+                      if (isCreator)
+                        TextButton.icon(
+                          onPressed: () => _editTrip(tripId, tripData),
+                          icon: Icon(Icons.edit, color: Colors.grey),
+                          label: Text("Edit", style: TextStyle(color: Colors.grey)),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -585,6 +613,258 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> with SingleTicker
         ),
       ),
     );
+  }
+
+  void _showTripAttractionsDialog(String tripId, String tripName) {
+    final TextEditingController _attractionController = TextEditingController();
+    final FocusNode _focusNode = FocusNode();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.location_on, color: Color(0xFFFF5252)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "$tripName - Places",
+                  style: TextStyle(fontSize: 18),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            width: double.maxFinite,
+            height: 400,
+            child: Column(
+              children: [
+                // Add new attraction section
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _attractionController,
+                        focusNode: _focusNode,
+                        decoration: InputDecoration(
+                          hintText: "Add a place or attraction...",
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        onSubmitted: (value) {
+                          if (value.trim().isNotEmpty) {
+                            _addAttraction(tripId, value.trim());
+                            _attractionController.clear();
+                          }
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () {
+                        if (_attractionController.text.trim().isNotEmpty) {
+                          _addAttraction(tripId, _attractionController.text.trim());
+                          _attractionController.clear();
+                        }
+                      },
+                      icon: Icon(Icons.add, color: Color(0xFFFF5252)),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Color(0xFFFF5252).withOpacity(0.1),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                Divider(),
+                SizedBox(height: 16),
+
+                // Attractions list
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('trips')
+                        .doc(tripId)
+                        .collection('attractions')
+                        .orderBy('createdAt', descending: false)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: Text("Error loading attractions"));
+                      }
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+
+                      final attractions = snapshot.data?.docs ?? [];
+
+                      if (attractions.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.explore_off, size: 60, color: Colors.grey),
+                              SizedBox(height: 16),
+                              Text(
+                                "No places added yet",
+                                style: TextStyle(color: Colors.grey, fontSize: 16),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Add places and attractions to visit!",
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: attractions.length,
+                        itemBuilder: (context, index) {
+                          final attractionDoc = attractions[index];
+                          final attractionData = attractionDoc.data() as Map<String, dynamic>;
+                          final attractionId = attractionDoc.id;
+                          final name = attractionData['name'] as String;
+                          final isCompleted = attractionData['isCompleted'] as bool? ?? false;
+                          final addedBy = attractionData['addedBy'] as String? ?? 'Unknown';
+
+                          return Card(
+                            margin: EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              leading: Checkbox(
+                                value: isCompleted,
+                                activeColor: Color(0xFFFF5252),
+                                onChanged: (bool? value) {
+                                  _toggleAttractionStatus(tripId, attractionId, value ?? false);
+                                },
+                              ),
+                              title: Text(
+                                name,
+                                style: TextStyle(
+                                  decoration: isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
+                                  color: isCompleted ? Colors.grey : Colors.black,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "Added by $addedBy",
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete_outline, color: Colors.red),
+                                onPressed: () => _deleteAttraction(tripId, attractionId, name),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _focusNode.unfocus();
+
+                // Small delay to let the keyboard close
+                Future.delayed(Duration(milliseconds: 100), () {
+                  _attractionController.dispose();
+                  _focusNode.dispose(); // Don't forget to dispose the FocusNode
+                  Navigator.pop(context);
+                });
+              },
+              child: Text("Close"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addAttraction(String tripId, String attractionName) async {
+    try {
+      // Get current user info
+      final currentUser = _authService.currentUser;
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .get();
+
+      final userData = userDoc.data() ?? {};
+      final username = userData['username'] ?? currentUser.email!.split('@')[0];
+
+      await FirebaseFirestore.instance
+          .collection('trips')
+          .doc(tripId)
+          .collection('attractions')
+          .add({
+        'name': attractionName,
+        'isCompleted': false,
+        'addedBy': username,
+        'addedById': currentUser.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Error handling without SnackBar
+      print("Error adding attraction: ${e.toString()}");
+    }
+  }
+
+  Future<void> _toggleAttractionStatus(String tripId, String attractionId, bool isCompleted) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('trips')
+          .doc(tripId)
+          .collection('attractions')
+          .doc(attractionId)
+          .update({
+        'isCompleted': isCompleted,
+        'completedAt': isCompleted ? FieldValue.serverTimestamp() : null,
+      });
+    } catch (e) {
+      print("Error updating attraction: ${e.toString()}");
+    }
+  }
+
+  Future<void> _deleteAttraction(String tripId, String attractionId, String attractionName) async {
+    // Show confirmation dialog
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Delete Attraction"),
+        content: Text("Are you sure you want to delete '$attractionName'?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('trips')
+            .doc(tripId)
+            .collection('attractions')
+            .doc(attractionId)
+            .delete();
+      } catch (e) {
+        print("Error deleting attraction: ${e.toString()}");
+      }
+    }
   }
 }
 
