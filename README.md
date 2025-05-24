@@ -38,6 +38,6 @@
 Clone the repository and switch to the `main` branch to start working with the production version:
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/ammarhaljk/CS308-Project-VacationCacther
 cd vacation-catcher
 git checkout main
