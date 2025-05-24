@@ -257,6 +257,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         backgroundColor: Color(0xFFFF5252),
         title: _isSearching
             ? TextField(

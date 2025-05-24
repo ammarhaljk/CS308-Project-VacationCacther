@@ -200,6 +200,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         title: Text(
           "VacationCatcher",
           style: GoogleFonts.pacifico(fontSize: 24, color: Colors.white),
@@ -901,6 +902,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
+          iconTheme: IconThemeData(color: Colors.white),
           title: Text(currentAlbumName, style: GoogleFonts.pacifico(fontSize: 20, color: Colors.white)),
           backgroundColor: Color(0xFFFF5252),
           actions: [

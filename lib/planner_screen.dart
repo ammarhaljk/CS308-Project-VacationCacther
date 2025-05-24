@@ -105,6 +105,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         backgroundColor: Color(0xFFFF5252),
         title: Text(
           "Trip Planner",
